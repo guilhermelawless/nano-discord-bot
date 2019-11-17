@@ -166,7 +166,7 @@ client.on('message', async msg => {
                     clearTimeout(muted[permanentId].timeout);
                 }
                 const timeout = setTimeout(async () => {
-                    removeRoleSafe(role, sinbinRole);
+                    removeRoleSafe(member, sinbinRole);
                     delete muted[permanentId];
                     saveMuted();
                 }, duration);
@@ -314,6 +314,7 @@ if (config.priceChannelId) {
 let copycatTargets = [];
 let copycatTargetDiscriminators = {};
 let copycatTargetIds = new Set();
+let copycatWords = [];
 
 function preprocessCopycatName(name) {
     return name.replace(/\s/g, '');
@@ -324,7 +325,7 @@ function isCopycat(name, discriminator) {
         return false;
     }
     name = preprocessCopycatName(name);
-    let lengthMatches = [];
+    let lengthMatches = copycatWords.slice();
     let symbolCount = 0;
     for (let char of name) {
         symbolCount++;
@@ -461,17 +462,23 @@ client.login(config.token).then(() => {
         for (const key of mutedToDelete) {
             delete muted[key];
         }
-        if (config.guildId && config.copycatTargetRoleId) {
+        if (config.guildId && (config.copycatTargetRoleIds || config.copycatTargetRoleId)) {
             const guild = client.guilds.get(config.guildId);
-            const copycatTargetRole = guild.roles.get(config.copycatTargetRoleId);
-            for (let [memberId, member] of copycatTargetRole.members) {
-                copycatTargetIds.add(member.user.id);
-                for (let name of [member.user.username, member.nickname]) {
-                    if (!name) continue;
-                    name = preprocessCopycatName(name);
-                    copycatTargets.push(name);
-                    copycatTargetDiscriminators[name] = member.user.discriminator;
+            const roles = config.copycatTargetRoleIds || [config.copycatTargetRoleId];
+            for (let roleId of roles) {
+                const role = guild.roles.get(roleId);
+                for (let [memberId, member] of role.members) {
+                    copycatTargetIds.add(member.user.id);
+                    for (let name of [member.user.username, member.nickname]) {
+                        if (!name) continue;
+                        name = preprocessCopycatName(name);
+                        copycatTargets.push(name);
+                        copycatTargetDiscriminators[name] = member.user.discriminator;
+                    }
                 }
+            }
+            if (config.copycatWords) {
+                copycatWords = config.copycatWords;
             }
         }
     } catch (err) {
